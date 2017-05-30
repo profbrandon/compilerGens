@@ -7,10 +7,15 @@ import Data.Char
 data Token = Token { tType::String
                    , tvalue::String
                    } deriving (Show)
+
+idHandler :: (String, String) -> [Token]
+idHandler (name, [])     = (Token "ID" (strip name)):(lexEBNF [])
+idHandler (name, (x:xs)) | isAlphaNum x || x == ' ' = idHandler (name ++ x, xs)
+                         | otherwise = (Token "ID" (strip name)):(lexEBNF (x:xs))
                    
 lexEBNF :: String -> [Token]
 lexEBNF []     = (Token "EOT" "$"):[]
-lexEBNF (x:xs) | isAlphaNum x = []
+lexEBNF (x:xs) | isAlphaNum x = idHandler [] (x:xs)
 lexEBNF (x:xs) = case x of
                     ' ' -> lexEBNF xs
                     '=' -> back "DEF" "="
