@@ -9,30 +9,16 @@ data Token = Token { tType::String
                    } deriving (Show)
 
 idHandler :: (String, String) -> [Token]
-idHandler (name, [])     = (Token "ID" (strip name)):(lexEBNF [])
-idHandler (name, (x:xs)) | isAlphaNum x || x == ' ' = idHandler (name ++ x, xs)
-                         | otherwise = (Token "ID" (strip name)):(lexEBNF (x:xs))
-                   
-lexEBNF :: String -> [Token]
-lexEBNF []     = (Token "EOT" "$"):[]
-lexEBNF (x:xs) | isAlphaNum x = idHandler [] (x:xs)
-lexEBNF (x:xs) = case x of
-                    ' ' -> lexEBNF xs
-                    '=' -> back "DEF" "="
-                    ',' -> back "CON" ","
-                    ';' -> back "TER" ";"
-                    '|' -> back "ALT" "|"
-                    '[' -> back "LSB" "["
-                    ']' -> back "RSB" "]"
-                    '{' -> back "LCB" "{"
-                    '}' -> back "RCB" "}"
-                    '(' -> back "LP" "("
-                    ')' -> back "RP" ")"
-                    '\"' -> back "DQ" "\""
-                    '\'' -> back "SQ" "\'"
-                    '*' -> back "COM" "*"
-                    '?' -> back "SSE" "?"
-                    '-' -> back "EXC" "-"
-                    _ -> error "incorrect grammar format"
-                    where back = \x y -> (Token x y):(lexEBNF xs)
 
+ops   = ['=', ',', ';', '|', '[', ']', '{', '}', '(', ')', '\'', '\"', '*', '?', '-']
+ids   = ["Definition", "Concatination", "Termination", "Alternation", "Left Optional"
+        , "Right Optional", "Left Repetition", "Right Repetition", "Left Parenthesis"
+        , "Right Parenthesis", "Single Quote Literal", "Double Quote Literal"
+        , "Half Comment", "Special Sequence", "Exception"]
+
+lexEBNF :: String -> [Token]
+lexEBNF [] = (Token "EOT" "$"):[]
+lexEBNF (x:xs) | isAlphaNum x = []
+               | elem x ops = let left = ids !! (elemIndex x ops) in (uncurry (Token) (left, [x])):lexEBNF xs
+               | otherwise = error "Incorrect EBNF Format"
+               where z = zip ids ops
