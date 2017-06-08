@@ -15,13 +15,18 @@ ids   = ["Definition", "Concatination", "Termination", "Alternation", "Left Opti
         , "Half Comment", "Special Sequence", "Exception"]
 
 
+remfrntSpace :: String -> String
+remfrntSpace [] = []
+remfrntSpace (x:xs) 
+  | x == ' ' = remfrntSpace xs
+  | otherwise = x:xs
 
 idHandler :: String -> String -> [Token]
 idHandler [] [] = error "No identifier found"
-idHandler [] name = [Token "Identifier" (reverse name)]
+idHandler [] name = [Token "Identifier" (reverse (remfrntSpace name))]
 idHandler (x:xs) name 
 	| isAlphaNum x || x == '_' || x == ' ' = idHandler xs (x:name)
-	| otherwise = (Token "Identifier" (reverse name)):lexEBNF (x:xs)
+	| otherwise = (Token "Identifier" (reverse (remfrntSpace name))):lexEBNF (x:xs)
 
 lexEBNF :: String -> [Token]
 lexEBNF [] = [Token "EOT" "$"]
