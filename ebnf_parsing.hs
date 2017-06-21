@@ -59,7 +59,7 @@ sHandler cond append t (x:xs) seq
 lexEBNF :: String -> [Token]
 lexEBNF [] = [Token "EOT" "$"]
 lexEBNF (x:xs)
-  | x == ' ' = lexEBNF xs
+  | isSpace x = lexEBNF xs
   | x == '?' = spHandler xs []
   | x == '\'' = sqHandler xs []
   | x == '\"' = dqHandler xs []

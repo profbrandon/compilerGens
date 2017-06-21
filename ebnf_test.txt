@@ -1,0 +1,9 @@
+character = ? character ?
+
+binary digit = '1'
+       	     | '0';
+
+binary literal = ['-'],binary digit,{binary digit};
+
+comment = '/*',{character},'*/'
+	| '//',{character - '\n'},'\n';
