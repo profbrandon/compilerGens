@@ -31,15 +31,15 @@ idHandler :: String -> String -> [Token]
 idHandler [] [] = error "No identifier found"
 idHandler [] name = [Token "Identifier" (reverse (remSpace name))]
 idHandler (x:xs) name 
-	| isAlphaNum x || x == '_' || x == ' ' = idHandler xs (x:name)
-	| otherwise = (Token "Identifier" (reverse (remSpace name))):lexEBNF (x:xs)
+  | isAlphaNum x || x == '_' || x == ' ' = idHandler xs (x:name)
+  | otherwise = (Token "Identifier" (reverse (remSpace name))):lexEBNF (x:xs)
 
 lexEBNF :: String -> [Token]
 lexEBNF [] = [Token "EOT" "$"]
 lexEBNF (x:xs)
-	| x == ' ' = lexEBNF xs
-	| isAlpha x || x == '_' = idHandler xs [x]
-    | elem x ops = 
+  | x == ' ' = lexEBNF xs
+  | isAlpha x || x == '_' = idHandler xs [x]
+  | elem x ops = 
         (Token t [v]):lexEBNF xs
-    | otherwise = error "Incorrect EBNF Format"
-    where (t, v) = head (filter (\k -> snd k == x) (zip ids ops))
+  | otherwise = error "Incorrect EBNF Format"
+  where (t, v) = head (filter (\k -> snd k == x) (zip ids ops))
