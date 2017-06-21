@@ -1,4 +1,4 @@
-character = ? character ?
+character = ? character ?;
 
 binary digit = '1'
        	     | '0';

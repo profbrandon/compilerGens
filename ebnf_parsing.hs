@@ -5,8 +5,11 @@ module EBNF where
 import Data.Char
 
 data Token = Token { tType::String
-                   , tvalue::String
+                   , tValue::String
                    } deriving (Show)
+
+putTok :: Token -> IO ()
+putTok (Token t v) = putStr ("<type=" ++ t ++ ", value=" ++ v ++ ">\n")
 
 ops   = ['=', ',', ';', '|', '[', ']', '{', '}', '(', ')', '\'', '\"', '*', '?', '-']
 ids   = ["Definition", "Concatination", "Termination", "Alternation", "Left Optional"
