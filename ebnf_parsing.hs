@@ -24,20 +24,37 @@ remfrntSpace (x:xs)
 remBackSpace :: String -> String
 remBackSpace = reverse . remfrntSpace . reverse
 
-remSpace :: String -> String
-remSpace = remfrntSpace . remBackSpace
+trimSpace :: String -> String
+trimSpace = remfrntSpace . remBackSpace
 
 idHandler :: String -> String -> [Token]
-idHandler [] [] = error "No identifier found"
-idHandler [] name = [Token "Identifier" (reverse (remSpace name))]
-idHandler (x:xs) name 
-  | isAlphaNum x || x == '_' || x == ' ' = idHandler xs (x:name)
-  | otherwise = (Token "Identifier" (reverse (remSpace name))):lexEBNF (x:xs)
+idHandler = sHandler (\c -> isAlphaNum c || c == '_' || c == ' ') "Identifier"
+
+spHandler :: String -> String -> [Token]
+spHandler = sHandler (/= '?') "Special Sequence"
+
+sqHandler :: String -> String -> [Token]
+
+sqHandler = sHandler (/= '\'') "Single Quote Literal"
+
+dqHandler :: String -> String -> [Token]
+dqHandler = sHandler (/= '\"') "Double Quote Literal"
+
+sHandler :: (Char -> Bool) -> String -> String -> String -> [Token]
+sHandler _ [] _ _ = error "No type supplied to token"
+sHandler _ t [] [] = error ("No " ++ t ++ " found")
+sHandler _ t [] seq = [Token t (reverse (trimSpace seq))]
+sHandler cond t (x:xs) seq
+  | cond x = sHandler cond t xs (x:seq)
+  | otherwise = (Token t (reverse (trimSpace seq))):lexEBNF (x:xs)
 
 lexEBNF :: String -> [Token]
 lexEBNF [] = [Token "EOT" "$"]
 lexEBNF (x:xs)
   | x == ' ' = lexEBNF xs
+  | x == '?' = spHandler xs []
+  | x == '\'' = sqHandler xs []
+  | x == '\"' = dqHandler xs []
   | isAlpha x || x == '_' = idHandler xs [x]
   | elem x ops = 
         (Token t [v]):lexEBNF xs
