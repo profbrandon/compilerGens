@@ -1,6 +1,10 @@
 {- Library for parsing ebnf formatted files -}
 
-module EBNF where
+module EBNF
+  ( Token(..)
+  , putTok
+  , lexEBNF)
+where
 
 import Data.Char
 
