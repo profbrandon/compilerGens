@@ -15,7 +15,7 @@ ids   = ["Definition", "Concatination", "Termination", "Alternation", "Left Opti
         , "Half Comment", "Special Sequence", "Exception"]
 
 
-remfrntSpace :: String -> String --I did this :D
+remfrntSpace :: String -> String --Jason did this :D
 remfrntSpace [] = []
 remfrntSpace (x:xs) 
   | x == ' ' = remfrntSpace xs
@@ -27,26 +27,29 @@ remBackSpace = reverse . remfrntSpace . reverse
 trimSpace :: String -> String
 trimSpace = remfrntSpace . remBackSpace
 
+notChar :: Char -> Char -> String -> Bool
+notChar c1 c2 [] = c1 /= c2
+notChar c1 c2 (x:xs) = c1 /= c2 || x == '\\'
+
 idHandler :: String -> String -> [Token]
-idHandler = sHandler (\c -> isAlphaNum c || c == '_' || c == ' ') "Identifier"
+idHandler = sHandler (\c s -> isAlphaNum c || c == '_' || c == ' ') True "Identifier"
 
 spHandler :: String -> String -> [Token]
-spHandler = sHandler (/= '?') "Special Sequence"
+spHandler = sHandler (notChar '?') False "Special Sequence"
 
 sqHandler :: String -> String -> [Token]
-
-sqHandler = sHandler (/= '\'') "Single Quote Literal"
+sqHandler = sHandler (notChar '\'') False "Single Quote Literal"
 
 dqHandler :: String -> String -> [Token]
-dqHandler = sHandler (/= '\"') "Double Quote Literal"
+dqHandler = sHandler (notChar '\"') False "Double Quote Literal"
 
-sHandler :: (Char -> Bool) -> String -> String -> String -> [Token]
-sHandler _ [] _ _ = error "No type supplied to token"
-sHandler _ t [] [] = error ("No " ++ t ++ " found")
-sHandler _ t [] seq = [Token t (reverse (trimSpace seq))]
-sHandler cond t (x:xs) seq
-  | cond x = sHandler cond t xs (x:seq)
-  | otherwise = (Token t (reverse (trimSpace seq))):lexEBNF (x:xs)
+sHandler :: (Char -> String -> Bool) -> Bool -> String -> String -> String -> [Token]
+sHandler _ _ [] _ _ = error "No type supplied to token"
+sHandler _ _ t [] [] = error ("No " ++ t ++ " found")
+sHandler _ _ t [] seq = [Token t (reverse (trimSpace seq))]
+sHandler cond append t (x:xs) seq
+  | cond x (reverse seq) = sHandler cond append t xs (x:seq)
+  | otherwise = (Token t (reverse (trimSpace seq))):lexEBNF (if append then x:xs else xs)
 
 lexEBNF :: String -> [Token]
 lexEBNF [] = [Token "EOT" "$"]
