@@ -3,6 +3,8 @@ character = ? character ?;
 binary digit = '1'
        	     | '0';
 
+(* you're such and idiot *)
+
 binary literal = ['-'],binary digit,{binary digit};
 
 comment = '/*',{character},'*/'
