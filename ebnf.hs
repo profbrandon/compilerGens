@@ -12,11 +12,11 @@ main =
       then
         do
           toks <- lexFiles args
-          mapM (putTok) toks
+          mapM (putOutput) toks
           putStr ""
       else error "Not all files exist as given"
 
-lexFiles :: [String] -> IO [Token]
+lexFiles :: [String] -> IO [Output]
 lexFiles [] = error "No files provided"
 lexFiles (x:xs)
   | xs == [] =

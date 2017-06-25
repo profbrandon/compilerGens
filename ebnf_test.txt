@@ -3,6 +3,10 @@ character = ? character ?;
 binary digit = '1'
        	     | '0';
 
+ternary digit :/&= '0'
+	      | '1'
+	      | '2';
+
 (* you're such and idiot *)
 
 binary literal = ['-'],binary digit,{binary digit};
