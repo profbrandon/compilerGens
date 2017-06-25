@@ -92,6 +92,6 @@ tokenFinder ln (x:xs)
 lexEBNF :: String -> [Output]
 lexEBNF s =
   let isComment = \out -> case out of
-                            Token "Comment" _ _ -> False
-                            _ -> True
-  in filter (isComment) (tokenFinder 1 s)
+                            Token "Comment" _ _ -> True
+                            _ -> False
+  in filter (not isComment) (tokenFinder 1 s)
