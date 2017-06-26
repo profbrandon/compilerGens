@@ -1,28 +1,37 @@
 -- Library for parsing ebnf formatted files
 
 module EBNF
-  ( Output(..)
-  , putOutput
+  ( Error(..)
+  , Output(..)
+  , Token(..)
+  , putToken
+  , putError
   , trimSpace
+  , divide
   , lexEBNF)
 where
 
 import Data.Char
 
-data Output = Token { tType  :: String
-                    , tValue :: String
-                    , tLine  :: Int }
-            | Error { eValue :: String
-                    , eLine  :: Int } deriving (Show)
+data Token = Token { tType  :: String
+                   , tValue :: String
+                   , tLine  :: Int }
 
-putOutput :: Output -> IO ()
-putOutput (Token t v l) = putStr ("<type=" ++ t ++ ", value=" ++ v ++ ", line=" ++ show l ++ ">\n")
-putOutput (Error v l) = putStr ("Error in:\n" ++ show v ++ "\nat line " ++ show l ++ "\n")
+data Error = Error { eValue :: String
+                   , eLine  :: Int } deriving (Show)
 
-ops   = ['=', ',', ';', '|', '[', ']', '{', '}', '(', ')', '*', '?', '-']
+type Output = Either Token Error
+
+putToken :: Token -> IO ()
+putToken (Token t v l) = putStr ("<type=" ++ t ++ ", value=" ++ v ++ ", line=" ++ show l ++ ">\n")
+
+putError :: Error -> IO ()
+putError (Error v l) = putStr ("Error in\n\"" ++ v ++ "\"\nat line " ++ show l ++ "\n")
+
+ops   = ['=', ',', ';', '|', '[', ']', '{', '}', '(', ')', '-']
 ids   = [ "Definition", "Concatination", "Termination", "Alternation", "Left Optional"
         , "Right Optional", "Left Repetition", "Right Repetition", "Left Parenthesis"
-        , "Right Parenthesis", "Half Comment", "Special Sequence", "Exception"]
+        , "Right Parenthesis", "Exception"]
 
 remfrntSpace :: String -> String --Jason did this :D
 remfrntSpace [] = []
@@ -61,17 +70,17 @@ dqHandler = sHandler (notChar '\"') False "Literal"
 sHandler :: (Char -> String -> Bool) -> Bool -> String -> Int ->  String -> String -> [Output]
 sHandler _ _ [] _ _ _ = error "No type supplied to token"
 sHandler _ _ t _ [] [] = error ("No " ++ t ++ " found")
-sHandler _ _ t ln [] seq = [Token t (reverse (trimSpace seq)) ln]
+sHandler _ _ t ln [] seq = [Left $ Token t (reverse (trimSpace seq)) ln]
 sHandler cond append t ln (x:xs) seq
   | x == '\n' = sHandler cond append t (ln + 1) xs seq
   | cond x (reverse seq) = sHandler cond append t ln xs (x:seq)
-  | otherwise = (Token t (reverse (trimSpace seq)) ln):tokenFinder ln (if append then x:xs else xs)
+  | otherwise = (Left $ Token t (reverse (trimSpace seq)) ln):tokenFinder ln (if append then x:xs else xs)
 
 cHandler :: Int -> String -> String -> [Output]
 cHandler = sHandler (\c s -> ')' /= c || last s /= '*') False "Comment"
 
 tokenFinder :: Int -> String -> [Output]
-tokenFinder ln [] = [Token "EOT" "$" ln]
+tokenFinder ln [] = [Left $ Token "EOT" "$" ln]
 tokenFinder ln (x:xs)
   | x == '\n' = tokenFinder (ln + 1) xs
   | isSpace x = tokenFinder ln xs
@@ -81,17 +90,25 @@ tokenFinder ln (x:xs)
   | x == '(' && head xs == '*' = cHandler ln (tail xs) []
   | isAlpha x || x == '_' = idHandler ln xs [x]
   | elem x ops = 
-    (Token t [v] ln):tokenFinder ln xs
+    (Left $ Token t [v] ln):tokenFinder ln xs
   | otherwise =
     let (y:ys) = tokenFinder ln xs
     in case y of
-      Error val l -> (Error (x:val) ln):ys
-      Token _ _ _ -> (Error [x] ln):y:ys
+      Right err -> (Right $ Error (x:val) ln):ys where Error val l = err
+      _ -> (Right $ Error [x] ln):y:ys
   where (t, v) = head (filter (\k -> snd k == x) (zip ids ops))
 
-lexEBNF :: String -> [Output]
+divide :: [Either a b] -> ([a], [b])
+divide [] = ([],[])
+divide (x:xs) =
+  case x of
+    Left a -> (a:fst back, snd back)
+    Right b -> (fst back, b:snd back)
+    where back = divide xs
+
+lexEBNF :: String -> ([Token],[Error])
 lexEBNF s =
   let isComment = \out -> case out of
-                            Token "Comment" _ _ -> True
+                            Left (Token "Comment" _ _) -> True
                             _ -> False
-  in filter (not . isComment) (tokenFinder 1 s)
+  in divide (filter (not . isComment) (tokenFinder 1 s)) 

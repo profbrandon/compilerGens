@@ -3,7 +3,9 @@ character = ? character ?;
 binary digit = '1'
        	     | '0';
 
-ternary digit :/&= '0'
+ternary digit :/&
+**3
+	      = '0'
 	      | '1'
 	      | '2';
 

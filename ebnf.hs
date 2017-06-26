@@ -11,12 +11,16 @@ main =
     if exists
       then
         do
-          toks <- lexFiles args
-          mapM (putOutput) toks
-          putStr ""
+          out <- lexFiles args
+          let toks = fst out
+          let errs = snd out
+          mapM (putToken) toks
+          putStrLn "--------------------"
+          mapM (putError) errs
+          putStrLn "--------------------"
       else error "Not all files exist as given"
 
-lexFiles :: [String] -> IO [Output]
+lexFiles :: [String] -> IO ([Token],[Error])
 lexFiles [] = error "No files provided"
 lexFiles (x:xs)
   | xs == [] =
@@ -26,5 +30,6 @@ lexFiles (x:xs)
   | otherwise =
     do
       content <- readFile x
+      let front = lexEBNF content
       back <- lexFiles xs
-      return (lexEBNF content ++ back)
+      return (fst front ++ fst back, snd front ++ snd back)
