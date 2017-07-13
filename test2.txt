@@ -1,0 +1,46 @@
+
+(* Brandon/Jason Interpreter Language *)
+
+program = defs ;
+
+defs = def , defs
+     | ;
+
+def = 'type' , id , '=' , type				(* Type Declaration *)
+    | typeid , '=' , expr 				(* Value Definition *)
+    | 'rec' , typeid , '=', expr ;			(* Recursive Value Definition *)
+
+expr = '\' , typeid , '.' , expr			(* Lambda Abstraction *)
+     | expr , expr    	    			   	(* Application *)
+     | id     					   	(* Free Variables *)
+     | 'if' , expr , 'then' , expr , 'else' , expr	(* Conditional *)
+     | 'True' 	     	      	     	      		(* Boolean True *)
+     | 'False'						(* Boolean False *)
+     | 'iszero' , expr					(* Zero Test Function *)
+     | 'succ' , expr					(* Numeric Successor Function *)
+     | 'pred' , expr					(* Numeric Predecessor Function *)
+     | natural						(* Natural Number *)
+     | '(' , ')'					(* Unit Value *)
+     | '(' , expr , ')' ;
+
+type = 'forall' , id , '.' , type
+     | type expr
+     | 'Top'
+     | 'Bottom'
+     | '(' , type , ')' ;
+
+type expr = type expr , '->' , type expr		(* Function/Arrow Type *)
+     	  | 'Bool'    	       	    			(* Boolean Type *)
+	  | 'Nat'					(* Natural Number Type *)
+	  | '()'					(* Unit Type *)
+	  | '(' , type expr , ',' , type expr  , ')' ;	(* Pair Type *)
+
+typeid = id , ':' , type
+       | '(' , typeid , ')' ;
+
+id = ? isAlphaNum ?
+
+natural = digit , { digit } ;
+
+digit = ? isDigit ?
+

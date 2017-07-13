@@ -1,114 +1,156 @@
 -- Library for parsing ebnf formatted files
 
 module EBNF
-  ( Error(..)
-  , Output(..)
+  ( Info(..)
   , Token(..)
-  , putToken
-  , putError
-  , trimSpace
-  , divide
-  , lexEBNF)
+  , lexEBNF
+  , showTokens
+  , showToken
+  , showError
+  )
 where
 
 import Data.Char
+import Data.List
+import Prelude hiding (until)
 
-data Token = Token { tType  :: String
-                   , tValue :: String
-                   , tLine  :: Int }
 
-data Error = Error { eValue :: String
-                   , eLine  :: Int } deriving (Show)
 
-type Output = Either Token Error
+-- Datatype Declarations
 
-putToken :: Token -> IO ()
-putToken (Token t v l) = putStr ("<type=" ++ t ++ ", value=" ++ v ++ ", line=" ++ show l ++ ">\n")
+data Info = Info { line   :: Int
+                 , column :: Int }
 
-putError :: Error -> IO ()
-putError (Error v l) = putStr ("Error in\n\"" ++ v ++ "\"\nat line " ++ show l ++ "\n")
+data Token = Def  Info
+           | Con  Info
+           | Alt  Info
+           | EDef Info
+           | LOpt Info
+           | ROpt Info
+           | LRep Info
+           | RRep Info
+           | LPar Info
+           | RPar Info
+           | Ex   Info
+           | Id   String Info
+           | Lit  String Info
+           | Sp   String Info
+           | Err  String Info Info
+           | EOF
 
-ops   = ['=', ',', ';', '|', '[', ']', '{', '}', '(', ')', '-']
-ids   = [ "Definition", "Concatination", "Termination", "Alternation", "Left Optional"
-        , "Right Optional", "Left Repetition", "Right Repetition", "Left Parenthesis"
-        , "Right Parenthesis", "Exception"]
 
-remfrntSpace :: String -> String --Jason did this :D
-remfrntSpace [] = []
-remfrntSpace (x:xs) 
-  | isSpace x = remfrntSpace xs
-  | otherwise = x:xs
 
-remBackSpace :: String -> String
-remBackSpace = reverse . remfrntSpace . reverse
+-- Show Functions
 
--- trimSpace removes whitespace from the front and back of text
-trimSpace :: String -> String
-trimSpace = remfrntSpace . remBackSpace
+instance Show Info where
+  show (Info l c) = "line: " ++ show l ++ ", column: " ++ show c
 
--- notChar determines if two characters are not equivalent (escape characters produce True)
-notChar :: Char -> Char -> String -> Bool
-notChar c1 c2 [] = c1 /= c2
-notChar c1 c2 l = c1 /= c2 || (last l) == '\\'
+instance Show Token where
+  show = showToken
 
-idHandler :: Int -> String -> String -> [Output]
-idHandler = sHandler (\c s -> isAlphaNum c || c == '_' || c == ' ') True "Identifier"
+showTokens :: [Token] -> String
+showTokens = unlines . (map (show))
 
-spHandler :: Int -> String -> String -> [Output]
-spHandler = sHandler (notChar '?') False "Special Sequence"
+tokFormat :: Info -> String -> String
+tokFormat i s = "<" ++ show i ++ ", " ++ s ++ ">"
 
-sqHandler :: Int -> String -> String -> [Output]
-sqHandler = sHandler (notChar '\'') False "Literal"
+showToken :: Token -> String
+showToken (Def   i)     = tokFormat i "Definition"
+showToken (Con   i)     = tokFormat i "Concatination"
+showToken (Alt   i)     = tokFormat i "Alternation"
+showToken (EDef  i)     = tokFormat i "End of Definition"
+showToken (LOpt  i)     = tokFormat i "Left Optional"
+showToken (ROpt  i)     = tokFormat i "Right Optional"
+showToken (LRep  i)     = tokFormat i "Left Repetition"
+showToken (RRep  i)     = tokFormat i "Right Repetition"
+showToken (LPar  i)     = tokFormat i "Left Parenthesis"
+showToken (RPar  i)     = tokFormat i "Right Parenthesis"
+showToken (Ex    i)     = tokFormat i "Exception"
+showToken (Id  s i)     = tokFormat i $ "Identifier: \'" ++ s ++ "\'"
+showToken (Lit s i)     = tokFormat i $ "Literal: \'" ++ s ++ "\'"
+showToken (Sp  s i)     = tokFormat i $ "Special Sequence: \'" ++ s ++ "\'"
+showToken (Err s i1 i2) = "<error: \'" ++ s ++ "\'>"
+showToken (EOF)         = "<EOF>"
 
-dqHandler :: Int -> String -> String -> [Output]
-dqHandler = sHandler (notChar '\"') False "Literal"
+showError (Err s i1 i2) file =
+  let Info ls _ = i1
+      Info le _ = i2
+      back       = getLnsStr ls le file
+  in case back of
+    Nothing -> error "Error indices incorrect"
+    Just b  -> "Error in string \'" ++ s ++ "\':\n" ++ b
 
-{- sHandler handles sequences of characters.  The first argument is a function that
-   determines if a character should be appended to the sequence.  The second argument
-   determines whether the last character needs to be parsed.  The third is a string
-   representing the token type -}
-sHandler :: (Char -> String -> Bool) -> Bool -> String -> Int ->  String -> String -> [Output]
-sHandler _ _ [] _ _ _ = error "No type supplied to token"
-sHandler _ _ t _ [] [] = error ("No " ++ t ++ " found")
-sHandler _ _ t ln [] seq = [Left $ Token t (reverse (trimSpace seq)) ln]
-sHandler cond append t ln (x:xs) seq
-  | x == '\n' = sHandler cond append t (ln + 1) xs seq
-  | cond x (reverse seq) = sHandler cond append t ln xs (x:seq)
-  | otherwise = (Left $ Token t (reverse (trimSpace seq)) ln):tokenFinder ln (if append then x:xs else xs)
+getLnsStr :: Int -> Int -> String -> Maybe String
+getLnsStr ls le s
+  | 0 <= ls && ls <= le && le < length s' =
+    Just $ unlines $ filter (between ls le) s'
+  | otherwise = Nothing
+  where s'            = lines s
+        between ls le = \l -> case elemIndex l s' of
+                                Nothing -> False
+                                Just i  -> ls <= i && i <= le
 
-cHandler :: Int -> String -> String -> [Output]
-cHandler = sHandler (\c s -> ')' /= c || last s /= '*') False "Comment"
 
-tokenFinder :: Int -> String -> [Output]
-tokenFinder ln [] = [Left $ Token "EOT" "$" ln]
-tokenFinder ln (x:xs)
-  | x == '\n' = tokenFinder (ln + 1) xs
-  | isSpace x = tokenFinder ln xs
-  | x == '?' = spHandler ln xs []
-  | x == '\'' = sqHandler ln xs []
-  | x == '\"' = dqHandler ln xs []
-  | x == '(' && head xs == '*' = cHandler ln (tail xs) []
-  | isAlpha x || x == '_' = idHandler ln xs [x]
-  | elem x ops = 
-    (Left $ Token t [v] ln):tokenFinder ln xs
+-- Lexing
+
+lexEBNF :: (Int,Int) -> String -> [Token]
+lexEBNF (l,c) []        = [EOF]
+lexEBNF (l,c) ('\n':xs) = lexEBNF (l + 1, 0) xs
+lexEBNF (l,c) (x:xs)
+  | isSpace x = back
+  | isAlpha x =
+    let (p, name, xs') = identifier (l, c + 1) xs
+    in (Id (x:name) $ Info l c):lexEBNF p xs'
   | otherwise =
-    let (y:ys) = tokenFinder ln xs
-    in case y of
-      Right err -> (Right $ Error (x:val) ln):ys where Error val l = err
-      _ -> (Right $ Error [x] ln):y:ys
-  where (t, v) = head (filter (\k -> snd k == x) (zip ids ops))
+    case x of
+      '='  -> tok Def
+      ','  -> tok Con
+      '|'  -> tok Alt
+      ';'  -> tok EDef
+      '['  -> tok LOpt
+      ']'  -> tok ROpt
+      '{'  -> tok LRep
+      '}'  -> tok RRep
+      ')'  -> tok RPar
+      '-'  -> tok Ex
+      '\'' -> txt Lit $ "\'"
+      '\"' -> txt Lit $ "\""
+      '?'  -> txt Sp $ "?"
+      '('  ->
+        case xs of
+          '*':xs' -> com xs'
+          _       -> tok LPar
+      _    -> err
+  where back = lexEBNF (l, c + 1) xs
+        tok  = \x   -> (x $ Info l c):back
+        txt  = \x y -> let (p, text, xs') = until (l, c + 1) y xs
+                       in (x text $ Info l c):lexEBNF p xs'
+        com  = \bck -> let (p, text, xs') = until (l, c + 1) "*)" bck
+                       in lexEBNF p xs'
+        err  = let (t:ts) = back
+               in case t of
+                 Err s i1 i2 -> (Err (x:s) (Info l c) i2):ts
+                 _           -> (Err [x] (Info l c) (Info l c)):back
 
-divide :: [Either a b] -> ([a], [b])
-divide [] = ([],[])
-divide (x:xs) =
-  case x of
-    Left a -> (a:fst back, snd back)
-    Right b -> (fst back, b:snd back)
-    where back = divide xs
 
-lexEBNF :: String -> ([Token],[Error])
-lexEBNF s =
-  let isComment = \out -> case out of
-                            Left (Token "Comment" _ _) -> True
-                            _ -> False
-  in divide (filter (not . isComment) (tokenFinder 1 s)) 
+
+-- Auxiliary Lexing Functions
+
+identifier :: (Int,Int) -> String -> ((Int,Int),String,String)
+identifier (l, c) ""     = ((l, c), "", "")
+identifier (l, c) (x:xs)
+  | isAlphaNum x = (p, x:name, xs')
+  | x == ' '     =
+    if null name then (p, name, xs') else (p, x:name, xs')
+  | otherwise    = ((l, c), "", (x:xs))
+  where (p, name, xs') = identifier (l, c + 1) xs
+
+until :: (Int,Int) -> String -> String -> ((Int,Int),String,String)
+until (l, c) str "" = error $ str ++ " expected"
+until (l, c) str back
+  | str `isPrefixOf` back =
+    let back' = drop (length str) back
+    in ((l, c + length str), "", back')
+  | otherwise = (p, x:text, xs')
+    where (x:xs)         = back
+          (p, text, xs') = until (l, c + 1) str xs

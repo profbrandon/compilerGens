@@ -4,7 +4,7 @@ binary digit = '1'
        	     | '0';
 
 ternary digit :/&
-**3
+        **3
 	      = '0'
 	      | '1'
 	      | '2';

@@ -1,5 +1,7 @@
 import System.Environment
 import System.Directory
+import Data.List
+
 import EBNF
 
 main :: IO ()
@@ -12,24 +14,31 @@ main =
       then
         do
           out <- lexFiles args
-          let toks = fst out
-          let errs = snd out
-          mapM (putToken) toks
-          putStrLn "--------------------"
-          mapM (putError) errs
-          putStrLn "--------------------"
+          mapM (printOut) out
+          putStr ""
       else error "Not all files exist as given"
 
-lexFiles :: [String] -> IO ([Token],[Error])
+printOut :: (String, String, [Token]) -> IO ()
+printOut (filename, file, ts) =
+  let isError e    = case e of Err _ _ _ -> True; _ -> False
+      (errs, toks) = partition (isError) ts
+  in do
+    putStrLn $ filename ++ ":----------"
+    putStrLn $ showTokens toks
+    putStrLn "-----------------"
+    mapM (\t -> putStrLn (showError t file)) errs
+    putStrLn ""
+
+lexFiles :: [String] -> IO [(String, String, [Token])]
 lexFiles [] = error "No files provided"
 lexFiles (x:xs)
   | xs == [] =
     do
       content <- readFile x
-      return (lexEBNF content)
+      return [(x, content, lexEBNF (0, 0) content)]
   | otherwise =
     do
       content <- readFile x
-      let front = lexEBNF content
+      let front = (x, content, lexEBNF (0, 0) content)
       back <- lexFiles xs
-      return (fst front ++ fst back, snd front ++ snd back)
+      return (front:back)
