@@ -1,6 +1,6 @@
 -- Library for parsing ebnf formatted files
 
-module EBNF
+module EBNF.Lexer
   ( Info(..)
   , Token(..)
   , lexEBNF

@@ -2,7 +2,7 @@ import System.Environment
 import System.Directory
 import Data.List
 
-import EBNF
+import EBNF.Lexer
 
 main :: IO ()
 main =
@@ -35,10 +35,10 @@ lexFiles (x:xs)
   | xs == [] =
     do
       content <- readFile x
-      return [(x, content, lexEBNF (0, 0) content)]
+      return [(x, content, lexEBNF (1, 0) content)]
   | otherwise =
     do
       content <- readFile x
-      let front = (x, content, lexEBNF (0, 0) content)
+      let front = (x, content, lexEBNF (1, 0) content)
       back <- lexFiles xs
       return (front:back)
